@@ -3,11 +3,11 @@ requires = ["setuptools~=80.9", "wheel"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "addonTemplate"
+name = "multiFocus"
+description = "MultiFocus - Multiple Cursors & Focus Manager for NVDA"
 dynamic = ["version"]
-description = "NVDA add-on template"
 maintainers = [
-	{name = "NV Access", email = "info@nvaccess.org"},
+	{name = "Pawan Kumar"},
 ]
 requires-python = ">=3.13,<3.14"
 classifiers = [
@@ -24,8 +24,7 @@ license = {file = "COPYING.TXT"}
 # build, translate, or lint the add-on. They are declared as PEP 735 dependency groups.
 dependencies = []
 [project.urls]
-Repository = "https://github.com/nvaccess/addonTemplate"
-
+Repository = "https://github.com/Blindtechagent/multiFocus"
 # PEP 735 dependency groups. `uv sync` installs the `dev` group by default, which
 # pulls in every tool needed to build, translate, and lint the add-on.
 [dependency-groups]
