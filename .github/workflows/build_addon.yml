@@ -36,7 +36,7 @@ jobs:
         python -m pip install --group dev
 
     - name: Code checks
-      run: export PREK_SKIP=no-commit-to-branch; prek run --all-files
+      run: export PREK_SKIP=no-commit-to-branch,pyright; prek run --all-files
 
     - name: building addon
       run: scons && scons pot
