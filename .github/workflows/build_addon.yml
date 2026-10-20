@@ -23,21 +23,23 @@ jobs:
     steps:
     - name: Checkout repo
       uses: actions/checkout@v7
-    - name: Install uv
-      uses: astral-sh/setup-uv@v10.3.0
+    - name: Set up Python
+      uses: actions/setup-python@v7
       with:
-        enable-cache: true
+        python-version: "3.13"
+        cache: 'pip'
     - name: Install dependencies
       run: |
         sudo apt-get update  -y
         sudo apt-get install -y gettext
-        uv sync
+        python -m pip install --upgrade pip
+        python -m pip install --group dev
 
     - name: Code checks
-      run: export PREK_SKIP=no-commit-to-branch; uv run prek run --all-files
+      run: export PREK_SKIP=no-commit-to-branch; prek run --all-files
 
     - name: building addon
-      run: uv run scons && uv run scons pot
+      run: scons && scons pot
 
     - uses: actions/upload-artifact@v7
       with:

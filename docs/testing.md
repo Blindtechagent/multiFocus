@@ -4,10 +4,10 @@ This template provides a built-in testing structure powered by Python's standard
 
 ## Running All Tests Locally
 
-To run the entire test suite (both unit and E2E tests) locally using `uv`:
+To run the entire test suite (both unit and E2E tests) locally:
 
 ```bash
-uv run python -m unittest discover -s tests -v
+python -m unittest discover -s tests -v
 ```
 
 ## Unit Testing
@@ -17,7 +17,7 @@ Unit tests are located under the `tests/unit/` directory.
 To execute tests for a specific unit test file:
 
 ```bash
-uv run python -m unittest -v tests/unit/template/test_sanity.py
+python -m unittest -v tests/unit/template/test_sanity.py
 ```
 
 ## End-to-End (E2E) Testing
@@ -27,5 +27,5 @@ End-to-end tests are located under the `tests/e2e/` directory to validate system
 To execute tests for a specific E2E test file:
 
 ```bash
-uv run python -m unittest -v tests/e2e/template/test_sanity.py
+python -m unittest -v tests/e2e/template/test_sanity.py
 ```

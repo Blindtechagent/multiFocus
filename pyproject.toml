@@ -25,8 +25,8 @@ license = {file = "COPYING.TXT"}
 dependencies = []
 [project.urls]
 Repository = "https://github.com/Blindtechagent/multiFocus"
-# PEP 735 dependency groups. `uv sync` installs the `dev` group by default, which
-# pulls in every tool needed to build, translate, and lint the add-on.
+# PEP 735 dependency groups. Install with `pip install --group dev`
+# to pull in every tool needed to build, translate, and lint the add-on.
 [dependency-groups]
 # Build add-on
 build = [
@@ -44,7 +44,6 @@ l10n = [
 ]
 # Lint
 lint = [
-	"uv==0.11.15",
 	"ruff==0.14.5",
 	"prek==0.4.8",
 	"pyright[nodejs]==1.1.407",
