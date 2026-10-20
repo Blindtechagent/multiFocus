@@ -27,4 +27,3 @@ Initial release of MultiFocus - Multiple Cursors \& Focus Manager for NVDA.
 \- Audio feedback and quick help for essential shortcuts.
 
 \- All gestures can be customized through NVDA's Input Gestures settings.
-
