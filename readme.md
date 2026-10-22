@@ -9,25 +9,27 @@ MultiFocus allows you to bookmark your place anywhere in Windows, jump back and 
 
 ---
 
-## Dynamic MultiFocus Mode
+## Dynamic MultiFocus Mode & Settings
 
-To avoid unwanted shortcut conflicts with NVDA commands or third-party applications, MultiFocus features a dynamic mode toggle:
+MultiFocus is designed to be ready to use immediately while giving you full control over shortcut handling:
 
-* **OFF by default**: When NVDA starts, MultiFocus is disabled.
-* **Toggle Shortcut**: Press **`NVDA + Windows + M`** to toggle MultiFocus ON or OFF at any time (NVDA announces "MultiFocus mode on" or "MultiFocus mode off").
-* **Released while OFF**: When MultiFocus is OFF, all MultiFocus gestures are dynamically released and unbound so that standard NVDA and Windows shortcuts work normally without interception.
+* **ON by default**: When NVDA starts, MultiFocus is enabled and ready to use immediately.
+* **NVDA Settings Configuration**: You can configure whether MultiFocus should be ON or OFF by default when NVDA loads by going to **NVDA Menu > Preferences > Settings > MultiFocus** and toggling the **Enable MultiFocus mode by default when NVDA starts** checkbox.
+* **Session Toggle Shortcut**: Press **`NVDA + Windows + M`** at any time to toggle MultiFocus ON or OFF during your session (NVDA announces "MultiFocus mode on" or "MultiFocus mode off").
+* **Released while OFF**: When MultiFocus is toggled OFF, all MultiFocus gestures are dynamically released and unbound, ensuring that standard NVDA and application shortcuts function normally without interception.
 * **Active while ON**: When MultiFocus is ON, all MultiFocus shortcuts are dynamically bound and responsive.
-* **Always Available**: The mode toggle shortcut (**`NVDA + Windows + M`**) always remains active.
-* **Safe Cleanup**: Plugin termination or reload releases only MultiFocus gesture bindings.
+* **Always Available**: The mode toggle shortcut (**`NVDA + Windows + M`**) always remains active regardless of mode.
+* **Safe Cleanup**: Plugin termination or reload cleanly releases only MultiFocus gesture bindings.
 
 ---
 
 ## Quick Start
 
-1. **Enable MultiFocus**: Press **`NVDA + Windows + M`** (announces "MultiFocus mode on").
+1. **Ready Out of the Box**: MultiFocus is ON by default when NVDA starts.
 2. **Save Your Position**: Press **`NVDA + Shift + C`** to drop a cursor at your active focus or caret position.
 3. **Toggle Back & Forth**: Press **`NVDA + Alt + F`** to flip instantly between your two most recent positions.
 4. **Browse Cursors**: Press **`NVDA + Alt + L`** once for an audio summary, or press twice quickly to open the **Cursor Manager dialog**.
+5. **Session Toggle**: Press **`NVDA + Windows + M`** anytime you want to temporarily turn MultiFocus OFF or back ON.
 
 > [!TIP]
 > Forgot a shortcut? Press **`NVDA + Alt + H`** for an immediate audio reminder of essential shortcuts!
@@ -38,7 +40,7 @@ To avoid unwanted shortcut conflicts with NVDA commands or third-party applicati
 
 | Keystroke | Action | Description |
 | :--- | :--- | :--- |
-| **`NVDA + Windows + M`** | **Toggle MultiFocus** | Toggles MultiFocus mode ON or OFF (OFF by default). Always available. |
+| **`NVDA + Windows + M`** | **Toggle MultiFocus** | Toggles MultiFocus mode ON or OFF (ON by default). Always available. |
 | **`NVDA + Shift + C`** | **Save Cursor** | Saves a new cursor at your current position. |
 | **`NVDA + Alt + F`** | **Toggle Recent** | Switches between your current and previous cursor. |
 | **`NVDA + Alt + Right Arrow`** | **Next Cursor** | Cycles forward to the next saved cursor. |

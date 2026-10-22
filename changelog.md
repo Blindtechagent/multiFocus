@@ -3,13 +3,16 @@
 ## 1.1.0
 
 ### Added & Improved
-- **Dynamic MultiFocus Mode**:
-  - MultiFocus mode is disabled (OFF) by default to prevent key conflicts with other add-ons and applications.
+- **MultiFocus Enabled by Default**:
+  - MultiFocus is now ON by default when NVDA starts, so you can immediately begin saving and jumping between cursors.
+- **NVDA Settings Configuration**:
+  - Added a dedicated settings panel under **NVDA Menu > Preferences > Settings > MultiFocus** allowing users to choose whether MultiFocus should start ON or OFF by default when NVDA loads.
+- **Dynamic Session Mode**:
   - Toggle mode anytime using **`NVDA+Windows+M`** (announces "MultiFocus mode on" or "MultiFocus mode off").
   - When **OFF**, all MultiFocus gestures are dynamically released and unbound, allowing standard NVDA and application shortcuts to execute without interference.
   - When **ON**, all MultiFocus gestures are dynamically bound and active.
   - The mode toggle shortcut (`NVDA+Windows+M`) always remains active.
-  - Plugin termination cleanly unbinds only MultiFocus gestures.
+  - Plugin termination cleanly unbinds only MultiFocus gestures and unregisters the settings panel.
 - **Updated Gestures**:
   - `NVDA+Alt+F` to toggle between recent cursors (removed `NVDA+Alt+C`).
   - `NVDA+Ctrl+1` through `9` to directly jump to saved cursors.

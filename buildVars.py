@@ -21,7 +21,9 @@ recent locations, or peek at other cursor positions without losing
 your active work."""),
 	addon_version="1.1.0",
 	addon_changelog=_("""1.1.0:
-- Dynamic MultiFocus mode toggle via NVDA+Windows+M (OFF by default).
+- MultiFocus is now ON by default when NVDA starts.
+- Added settings panel in NVDA Settings to configure start-up state.
+- Dynamic session toggle via NVDA+Windows+M.
 - When OFF, gestures are dynamically released to NVDA and applications.
 - Updated gestures: NVDA+Alt+F to toggle recent cursors, NVDA+Ctrl+1..9 to jump.
 - Scoped gesture unbinding on toggle and plugin termination.

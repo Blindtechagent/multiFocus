@@ -25,6 +25,9 @@ def _setup_nvda_mocks():
 		"winUser",
 		"wx",
 		"gui",
+		"gui.settingsDialogs",
+		"gui.guiHelper",
+		"config",
 		"core",
 	]
 	for mod_name in nvda_modules:
@@ -34,6 +37,66 @@ def _setup_nvda_mocks():
 
 	# Specific mocks
 	sys.modules["addonHandler"].initTranslation = MagicMock()
+
+	# Config mock
+	config_mod = sys.modules["config"]
+	if not hasattr(config_mod, "conf"):
+		class ConfigDict(dict):
+			def __init__(self, *args, **kwargs):
+				super().__init__(*args, **kwargs)
+				self.spec = {}
+
+		config_mod.conf = ConfigDict({
+			"multiFocus": {
+				"enabledByDefault": True,
+			},
+		})
+
+	# GUI Settings dialogs mock
+	sd_mod = sys.modules["gui.settingsDialogs"]
+	if not hasattr(sd_mod, "SettingsPanel"):
+
+		class MockSettingsPanel:
+			def __init__(self, *args, **kwargs):
+				pass
+
+		class MockNVDASettingsDialog:
+			categoryClasses = []
+
+		sd_mod.SettingsPanel = MockSettingsPanel
+		sd_mod.NVDASettingsDialog = MockNVDASettingsDialog
+		sys.modules["gui"].settingsDialogs = sd_mod
+
+	# GUI Helper mock
+	gh_mod = sys.modules["gui.guiHelper"]
+	if not hasattr(gh_mod, "BoxSizerHelper"):
+
+		class MockBoxSizerHelper:
+			def __init__(self, parent, sizer=None):
+				pass
+
+			def addItem(self, item):
+				return item
+
+		gh_mod.BoxSizerHelper = MockBoxSizerHelper
+		sys.modules["gui"].guiHelper = gh_mod
+
+	# wx CheckBox mock
+	wx_mod = sys.modules["wx"]
+	if not hasattr(wx_mod, "CheckBox"):
+
+		class MockCheckBox:
+			def __init__(self, parent, label=""):
+				self._val = False
+				self._label = label
+
+			def SetValue(self, val):
+				self._val = bool(val)
+
+			def IsChecked(self):
+				return self._val
+
+		wx_mod.CheckBox = MockCheckBox
 
 	def mock_script(category=None, description=None, gesture=None, gestures=None, *args, **kwargs):
 		def decorator(func):
@@ -55,6 +118,7 @@ def _setup_nvda_mocks():
 	class BaseGlobalPlugin:
 		def __init__(self, *args, **kwargs):
 			self._bound_gestures = {}
+			self._gestureMap = self._bound_gestures
 
 		def bindGesture(self, gestureIdentifier, scriptName):
 			self._bound_gestures[gestureIdentifier] = scriptName
@@ -81,55 +145,50 @@ def _setup_nvda_mocks():
 
 _setup_nvda_mocks()
 
-# Import multiFocus plugin and manager
-from addon.globalPlugins.multiFocus import GlobalPlugin
+# Import multiFocus plugin, settings panel, and manager
+from addon.globalPlugins.multiFocus import (
+	GlobalPlugin,
+	MultiFocusSettingsPanel,
+	isEnabledByDefault,
+	setEnabledByDefault,
+)
 from addon.globalPlugins.multiFocus.focusManager import MultiCursorManager
+import gui.settingsDialogs
 
 
 class TestMultiFocusDynamicMode(unittest.TestCase):
-	"""Test case for verifying the dynamic MultiFocus mode and gesture binding/releasing."""
+	"""Test case for verifying the dynamic MultiFocus mode, NVDA settings, and gesture binding/releasing."""
 
 	def setUp(self):
+		setEnabledByDefault(True)
 		self.plugin = GlobalPlugin()
 
-	def test_multifocus_off_by_default(self):
-		"""MultiFocus must be disabled by default."""
-		self.assertFalse(self.plugin.multifocusEnabled)
+	def tearDown(self):
+		self.plugin.terminate()
+		setEnabledByDefault(True)
+
+	def test_multifocus_on_by_default(self):
+		"""MultiFocus must be enabled (ON) by default."""
+		self.assertTrue(self.plugin.multifocusEnabled)
+
+	def test_gestures_bound_when_on_by_default(self):
+		"""When MultiFocus is ON by default, MultiFocus gestures must be bound."""
+		for gesture, script_name in self.plugin.MULTIFOCUS_GESTURES.items():
+			self.assertIn(
+				gesture,
+				self.plugin._bound_gestures,
+				f"Gesture {gesture} should be bound by default when MultiFocus is ON",
+			)
+			self.assertEqual(self.plugin._bound_gestures[gesture], script_name)
 
 	def test_mode_toggle_gesture_always_available(self):
 		"""NVDA+Windows+M must be bound to toggleMultiFocusMode and always available."""
 		gestures = getattr(self.plugin.script_toggleMultiFocusMode, "gestures", [])
 		self.assertIn("kb:NVDA+windows+m", gestures)
 
-	def test_gestures_unbound_when_off(self):
-		"""When MultiFocus is OFF, MultiFocus gestures must be unbound/released."""
-		for gesture in self.plugin.MULTIFOCUS_GESTURES:
-			self.assertNotIn(
-				gesture,
-				self.plugin._bound_gestures,
-				f"Gesture {gesture} should be released when MultiFocus is OFF",
-			)
-
-	def test_gestures_bound_when_on(self):
-		"""When MultiFocus is toggled ON, MultiFocus gestures must be bound."""
-		self.plugin.script_toggleMultiFocusMode(None)
-		self.assertTrue(self.plugin.multifocusEnabled)
-
-		for gesture, script_name in self.plugin.MULTIFOCUS_GESTURES.items():
-			self.assertIn(
-				gesture,
-				self.plugin._bound_gestures,
-				f"Gesture {gesture} should be bound when MultiFocus is ON",
-			)
-			self.assertEqual(self.plugin._bound_gestures[gesture], script_name)
-
 	def test_gestures_released_when_toggled_off(self):
-		"""When MultiFocus is toggled back OFF, MultiFocus gestures must be released."""
-		# Turn ON
-		self.plugin.script_toggleMultiFocusMode(None)
-		self.assertTrue(self.plugin.multifocusEnabled)
-
-		# Turn OFF
+		"""When MultiFocus is toggled OFF, MultiFocus gestures must be released."""
+		# MultiFocus is ON initially; toggling turns it OFF
 		self.plugin.script_toggleMultiFocusMode(None)
 		self.assertFalse(self.plugin.multifocusEnabled)
 
@@ -140,13 +199,27 @@ class TestMultiFocusDynamicMode(unittest.TestCase):
 				f"Gesture {gesture} should be released when MultiFocus is toggled OFF",
 			)
 
-	def test_plugin_termination_releases_bindings(self):
-		"""Terminating the plugin must release all MultiFocus gesture bindings."""
-		# Turn ON
+	def test_gestures_bound_when_toggled_back_on(self):
+		"""When MultiFocus is toggled back ON, MultiFocus gestures must be bound again."""
+		# Turn OFF
+		self.plugin.script_toggleMultiFocusMode(None)
+		self.assertFalse(self.plugin.multifocusEnabled)
+
+		# Turn back ON
 		self.plugin.script_toggleMultiFocusMode(None)
 		self.assertTrue(self.plugin.multifocusEnabled)
 
-		# Terminate
+		for gesture, script_name in self.plugin.MULTIFOCUS_GESTURES.items():
+			self.assertIn(
+				gesture,
+				self.plugin._bound_gestures,
+				f"Gesture {gesture} should be rebound when MultiFocus is toggled ON",
+			)
+			self.assertEqual(self.plugin._bound_gestures[gesture], script_name)
+
+	def test_plugin_termination_releases_bindings(self):
+		"""Terminating the plugin must release all MultiFocus gesture bindings."""
+		self.assertTrue(self.plugin.multifocusEnabled)
 		self.plugin.terminate()
 
 		for gesture in self.plugin.MULTIFOCUS_GESTURES:
@@ -202,12 +275,7 @@ class TestMultiFocusDynamicMode(unittest.TestCase):
 		unrelated_gesture = "kb:NVDA+control+shift+z"
 		self.plugin.bindGesture(unrelated_gesture, "unrelatedAction")
 
-		# Enable MultiFocus
-		self.plugin.script_toggleMultiFocusMode(None)
-		self.assertTrue(self.plugin.multifocusEnabled)
-		self.assertIn(unrelated_gesture, self.plugin._bound_gestures)
-
-		# Disable MultiFocus
+		# MultiFocus is ON initially. Disable it.
 		self.plugin.script_toggleMultiFocusMode(None)
 		self.assertFalse(self.plugin.multifocusEnabled)
 
@@ -228,10 +296,6 @@ class TestMultiFocusDynamicMode(unittest.TestCase):
 		unrelated_gesture = "kb:NVDA+control+shift+z"
 		self.plugin.bindGesture(unrelated_gesture, "unrelatedAction")
 
-		# Enable MultiFocus
-		self.plugin.script_toggleMultiFocusMode(None)
-		self.assertTrue(self.plugin.multifocusEnabled)
-
 		# Terminate
 		self.plugin.terminate()
 
@@ -245,6 +309,51 @@ class TestMultiFocusDynamicMode(unittest.TestCase):
 		# MultiFocus gestures must be removed
 		for gesture in self.plugin.MULTIFOCUS_GESTURES:
 			self.assertNotIn(gesture, self.plugin._bound_gestures)
+
+	def test_settings_panel_registration_and_unregistration(self):
+		"""Verify MultiFocusSettingsPanel registers and unregisters cleanly."""
+		self.assertIn(
+			MultiFocusSettingsPanel,
+			gui.settingsDialogs.NVDASettingsDialog.categoryClasses,
+		)
+		self.plugin.terminate()
+		self.assertNotIn(
+			MultiFocusSettingsPanel,
+			gui.settingsDialogs.NVDASettingsDialog.categoryClasses,
+		)
+
+	def test_config_setting_controls_startup_state(self):
+		"""Verify that when disabled in configuration, plugin loads with MultiFocus OFF."""
+		setEnabledByDefault(False)
+		self.assertFalse(isEnabledByDefault())
+
+		off_plugin = GlobalPlugin()
+		try:
+			self.assertFalse(off_plugin.multifocusEnabled)
+			for gesture in off_plugin.MULTIFOCUS_GESTURES:
+				self.assertNotIn(
+					gesture,
+					off_plugin._bound_gestures,
+					f"Gesture {gesture} should not be bound when startup setting is OFF",
+				)
+		finally:
+			off_plugin.terminate()
+
+	def test_settings_panel_makes_and_saves_settings(self):
+		"""Verify that MultiFocusSettingsPanel creates controls and saves correctly."""
+		panel = MultiFocusSettingsPanel()
+		panel.makeSettings(None)
+		self.assertTrue(panel.enabledByDefaultCheckBox.IsChecked())
+
+		# Uncheck and save
+		panel.enabledByDefaultCheckBox.SetValue(False)
+		panel.onSave()
+		self.assertFalse(isEnabledByDefault())
+
+		# Check and save
+		panel.enabledByDefaultCheckBox.SetValue(True)
+		panel.onSave()
+		self.assertTrue(isEnabledByDefault())
 
 
 class TestMultiCursorManagerBasics(unittest.TestCase):

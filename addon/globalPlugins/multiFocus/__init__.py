@@ -29,6 +29,69 @@ from .focusManager import MultiCursorManager
 
 CATEGORY_NAME = _("MultiFocus (Multiple Cursors)")
 
+# Initialize configuration specification for MultiFocus
+try:
+	import config
+
+	confspec = {
+		"enabledByDefault": "boolean(default=True)",
+	}
+	config.conf.spec["multiFocus"] = confspec
+except Exception:
+	pass
+
+
+def isEnabledByDefault() -> bool:
+	"""Check if MultiFocus is configured to be enabled by default when NVDA starts."""
+	try:
+		import config
+
+		return bool(config.conf["multiFocus"]["enabledByDefault"])
+	except Exception:
+		return True
+
+
+def setEnabledByDefault(value: bool):
+	"""Set whether MultiFocus should be enabled by default when NVDA starts."""
+	try:
+		import config
+
+		if "multiFocus" not in config.conf:
+			config.conf["multiFocus"] = {}
+		config.conf["multiFocus"]["enabledByDefault"] = bool(value)
+	except Exception:
+		pass
+
+
+try:
+	import gui.settingsDialogs
+
+	_SettingsPanelBase = gui.settingsDialogs.SettingsPanel
+except Exception:
+	_SettingsPanelBase = object
+
+
+class MultiFocusSettingsPanel(_SettingsPanelBase):
+	"""Settings panel for MultiFocus in the NVDA Settings dialog."""
+
+	title = _("MultiFocus")
+
+	def makeSettings(self, settingsSizer):
+		import wx
+		import gui.guiHelper
+
+		sHelper = gui.guiHelper.BoxSizerHelper(self, sizer=settingsSizer)
+		self.enabledByDefaultCheckBox = sHelper.addItem(
+			wx.CheckBox(
+				self,
+				label=_("&Enable MultiFocus mode by default when NVDA starts"),
+			),
+		)
+		self.enabledByDefaultCheckBox.SetValue(isEnabledByDefault())
+
+	def onSave(self):
+		setEnabledByDefault(self.enabledByDefaultCheckBox.IsChecked())
+
 
 class GlobalPlugin(globalPluginHandler.GlobalPlugin):
 	"""Global plugin providing multiple independent cursors & focus points for NVDA."""
@@ -74,13 +137,35 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
 
 		self.mgr = MultiCursorManager(max_slots=9)
 
-		# MultiFocus is OFF by default.
-		self.multifocusEnabled = False
+		# MultiFocus is ON by default when NVDA loads, unless configured otherwise in NVDA settings.
+		self.multifocusEnabled = isEnabledByDefault()
 
-		# The script decorator automatically binds all gestures during
-		# GlobalPlugin initialization. Remove all MultiFocus bindings now
-		# so that OFF really means the gestures are released to NVDA.
-		self._disableMultiFocusGestures()
+		if self.multifocusEnabled:
+			self._enableMultiFocusGestures()
+		else:
+			self._disableMultiFocusGestures()
+
+		self._registerSettingsPanel()
+
+	def _registerSettingsPanel(self):
+		"""Register the MultiFocus settings panel in NVDA Settings."""
+		try:
+			import gui.settingsDialogs
+
+			if MultiFocusSettingsPanel not in gui.settingsDialogs.NVDASettingsDialog.categoryClasses:
+				gui.settingsDialogs.NVDASettingsDialog.categoryClasses.append(MultiFocusSettingsPanel)
+		except Exception:
+			pass
+
+	def _unregisterSettingsPanel(self):
+		"""Unregister the MultiFocus settings panel from NVDA Settings."""
+		try:
+			import gui.settingsDialogs
+
+			if MultiFocusSettingsPanel in gui.settingsDialogs.NVDASettingsDialog.categoryClasses:
+				gui.settingsDialogs.NVDASettingsDialog.categoryClasses.remove(MultiFocusSettingsPanel)
+		except Exception:
+			pass
 
 	# ------------------------------------------------------------------
 	# MultiFocus Mode
@@ -99,17 +184,18 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
 
 	def _disableMultiFocusGestures(self):
 		"""Remove only MultiFocus gestures, preserving any unrelated gesture bindings."""
+		has_remove = hasattr(self, "removeGestureBinding")
 		for gestureIdentifier in self.MULTIFOCUS_GESTURES:
-			try:
-				self.removeGestureBinding(gestureIdentifier)
-			except LookupError:
-				pass
-			except AttributeError:
-				if hasattr(self, "_gestureMap"):
-					try:
-						del self._gestureMap[gestureIdentifier]
-					except KeyError:
-						pass
+			if has_remove:
+				try:
+					self.removeGestureBinding(gestureIdentifier)
+				except LookupError:
+					pass
+			elif hasattr(self, "_gestureMap"):
+				try:
+					del self._gestureMap[gestureIdentifier]
+				except KeyError:
+					pass
 
 	@script(
 		category=CATEGORY_NAME,
@@ -416,9 +502,10 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
 
 	def terminate(self):
 		"""
-		Release all MultiFocus gesture bindings when the plugin unloads.
+		Release all MultiFocus gesture bindings and unregister settings panel when the plugin unloads.
 		"""
 		self._disableMultiFocusGestures()
+		self._unregisterSettingsPanel()
 		try:
 			super().terminate()
 		except (AttributeError, TypeError):
