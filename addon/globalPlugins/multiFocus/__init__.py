@@ -33,11 +33,107 @@ CATEGORY_NAME = _("MultiFocus (Multiple Cursors)")
 class GlobalPlugin(globalPluginHandler.GlobalPlugin):
 	"""Global plugin providing multiple independent cursors & focus points for NVDA."""
 
+	# All MultiFocus gestures except the mode toggle itself.
+	#
+	# These bindings are dynamically enabled/disabled depending on
+	# whether MultiFocus mode is active.
+	MULTIFOCUS_GESTURES = {
+		"kb:NVDA+shift+c": "addCursor",
+		"kb:NVDA+alt+f": "toggleRecent",
+		"kb:NVDA+alt+rightArrow": "nextCursor",
+		"kb:NVDA+alt+leftArrow": "previousCursor",
+		"kb:NVDA+alt+l": "listCursors",
+		"kb:NVDA+alt+h": "quickHelp",
+		"kb:NVDA+alt+downArrow": "peekNext",
+		"kb:NVDA+alt+upArrow": "peekPrevious",
+		"kb:NVDA+alt+shift+c": "peekCurrent",
+		"kb:NVDA+alt+delete": "deleteCurrent",
+		"kb:NVDA+alt+shift+delete": "clearAll",
+		"kb:NVDA+shift+1": "setCursor1",
+		"kb:NVDA+shift+2": "setCursor2",
+		"kb:NVDA+shift+3": "setCursor3",
+		"kb:NVDA+shift+4": "setCursor4",
+		"kb:NVDA+shift+5": "setCursor5",
+		"kb:NVDA+shift+6": "setCursor6",
+		"kb:NVDA+shift+7": "setCursor7",
+		"kb:NVDA+shift+8": "setCursor8",
+		"kb:NVDA+shift+9": "setCursor9",
+		"kb:NVDA+control+1": "jumpCursor1",
+		"kb:NVDA+control+2": "jumpCursor2",
+		"kb:NVDA+control+3": "jumpCursor3",
+		"kb:NVDA+control+4": "jumpCursor4",
+		"kb:NVDA+control+5": "jumpCursor5",
+		"kb:NVDA+control+6": "jumpCursor6",
+		"kb:NVDA+control+7": "jumpCursor7",
+		"kb:NVDA+control+8": "jumpCursor8",
+		"kb:NVDA+control+9": "jumpCursor9",
+	}
+
 	def __init__(self, *args, **kwargs):
 		super().__init__(*args, **kwargs)
+
 		self.mgr = MultiCursorManager(max_slots=9)
 
-	# --- Core Quick Workflow (Save, Toggle, Cycle) ---
+		# MultiFocus is OFF by default.
+		self.multifocusEnabled = False
+
+		# The script decorator automatically binds all gestures during
+		# GlobalPlugin initialization. Remove all MultiFocus bindings now
+		# so that OFF really means the gestures are released to NVDA.
+		self._disableMultiFocusGestures()
+
+	# ------------------------------------------------------------------
+	# MultiFocus Mode
+	# ------------------------------------------------------------------
+
+	def _enableMultiFocusGestures(self):
+		"""Bind all MultiFocus gestures."""
+		try:
+			self.bindGestures(self.MULTIFOCUS_GESTURES)
+		except AttributeError:
+			for gestureIdentifier, scriptName in self.MULTIFOCUS_GESTURES.items():
+				try:
+					self.bindGesture(gestureIdentifier, scriptName)
+				except (AttributeError, LookupError):
+					pass
+
+	def _disableMultiFocusGestures(self):
+		"""Remove only MultiFocus gestures, preserving any unrelated gesture bindings."""
+		for gestureIdentifier in self.MULTIFOCUS_GESTURES:
+			try:
+				self.removeGestureBinding(gestureIdentifier)
+			except LookupError:
+				pass
+			except AttributeError:
+				if hasattr(self, "_gestureMap"):
+					try:
+						del self._gestureMap[gestureIdentifier]
+					except KeyError:
+						pass
+
+	@script(
+		category=CATEGORY_NAME,
+		description=_("Toggles MultiFocus mode on or off"),
+		gesture="kb:NVDA+windows+m",
+	)
+	def script_toggleMultiFocusMode(self, gesture):
+		"""
+		Toggles MultiFocus mode.
+
+		This gesture always remains available.
+		"""
+		if self.multifocusEnabled:
+			self._disableMultiFocusGestures()
+			self.multifocusEnabled = False
+			ui.message(_("MultiFocus mode off"))
+		else:
+			self._enableMultiFocusGestures()
+			self.multifocusEnabled = True
+			ui.message(_("MultiFocus mode on"))
+
+	# ------------------------------------------------------------------
+	# Core Quick Workflow
+	# ------------------------------------------------------------------
 
 	@script(
 		category=CATEGORY_NAME,
@@ -50,7 +146,7 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
 	@script(
 		category=CATEGORY_NAME,
 		description=_("Toggles between your two most recent cursors"),
-		gestures=["kb:NVDA+alt+c", "kb:NVDA+alt+f"],
+		gesture="kb:NVDA+alt+f",
 	)
 	def script_toggleRecent(self, gesture):
 		self.mgr.toggle_recent()
@@ -71,15 +167,20 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
 	def script_previousCursor(self, gesture):
 		self.mgr.cycle_cursor(forward=False)
 
-	# --- Interactive Manager & Quick Help ---
+	# ------------------------------------------------------------------
+	# Interactive Manager & Quick Help
+	# ------------------------------------------------------------------
 
 	@script(
 		category=CATEGORY_NAME,
-		description=_("Press once to announce active cursors; press twice to open Cursor Manager"),
+		description=_(
+			"Press once to announce active cursors; press twice to open Cursor Manager",
+		),
 		gesture="kb:NVDA+alt+l",
 	)
 	def script_listCursors(self, gesture):
 		count = scriptHandler.getLastScriptRepeatCount()
+
 		if count == 0:
 			self.mgr.list_cursors(prompt_dialog=True)
 		else:
@@ -95,17 +196,23 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
 			_(
 				"MultiFocus Quick Guide: "
 				"NVDA+Shift+C saves your cursor. "
-				"NVDA+Alt+C toggles between recent cursors. "
+				"NVDA+Alt+F toggles between recent cursors. "
 				"NVDA+Alt+Right or Left Arrow cycles cursors. "
-				"NVDA+Alt+L lists cursors, or press twice for Cursor Manager.",
+				"NVDA+Alt+L lists cursors, or press twice for Cursor Manager. "
+				"NVDA+Ctrl+1 through 9 jumps to a saved cursor. "
+				"NVDA+Windows+M toggles MultiFocus mode.",
 			),
 		)
 
-	# --- Audio Peek Commands (Inspect secondary cursor without moving focus) ---
+	# ------------------------------------------------------------------
+	# Audio Peek Commands
+	# ------------------------------------------------------------------
 
 	@script(
 		category=CATEGORY_NAME,
-		description=_("Peeks next line of alternate cursor without moving active focus"),
+		description=_(
+			"Peeks next line of alternate cursor without moving active focus",
+		),
 		gesture="kb:NVDA+alt+downArrow",
 	)
 	def script_peekNext(self, gesture):
@@ -113,7 +220,9 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
 
 	@script(
 		category=CATEGORY_NAME,
-		description=_("Peeks previous line of alternate cursor without moving active focus"),
+		description=_(
+			"Peeks previous line of alternate cursor without moving active focus",
+		),
 		gesture="kb:NVDA+alt+upArrow",
 	)
 	def script_peekPrevious(self, gesture):
@@ -121,13 +230,17 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
 
 	@script(
 		category=CATEGORY_NAME,
-		description=_("Peeks current line of alternate cursor without moving active focus"),
+		description=_(
+			"Peeks current line of alternate cursor without moving active focus",
+		),
 		gesture="kb:NVDA+alt+shift+c",
 	)
 	def script_peekCurrent(self, gesture):
 		self.mgr.peek_cursor(direction=0)
 
-	# --- Cursor Management ---
+	# ------------------------------------------------------------------
+	# Cursor Management
+	# ------------------------------------------------------------------
 
 	@script(
 		category=CATEGORY_NAME,
@@ -145,7 +258,9 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
 	def script_clearAll(self, gesture):
 		self.mgr.clear_all()
 
-	# --- Direct Numbered Slots (1 to 9) ---
+	# ------------------------------------------------------------------
+	# Set Cursor Slots
+	# ------------------------------------------------------------------
 
 	@script(
 		category=CATEGORY_NAME,
@@ -219,10 +334,14 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
 	def script_setCursor9(self, gesture):
 		self.mgr.set_cursor(9)
 
+	# ------------------------------------------------------------------
+	# Jump to Cursor Slots
+	# ------------------------------------------------------------------
+
 	@script(
 		category=CATEGORY_NAME,
 		description=_("Jumps to Cursor 1 and restores caret/focus"),
-		gesture="kb:NVDA+alt+1",
+		gesture="kb:NVDA+control+1",
 	)
 	def script_jumpCursor1(self, gesture):
 		self.mgr.jump_to_cursor(1)
@@ -230,7 +349,7 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
 	@script(
 		category=CATEGORY_NAME,
 		description=_("Jumps to Cursor 2 and restores caret/focus"),
-		gesture="kb:NVDA+alt+2",
+		gesture="kb:NVDA+control+2",
 	)
 	def script_jumpCursor2(self, gesture):
 		self.mgr.jump_to_cursor(2)
@@ -238,7 +357,7 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
 	@script(
 		category=CATEGORY_NAME,
 		description=_("Jumps to Cursor 3 and restores caret/focus"),
-		gesture="kb:NVDA+alt+3",
+		gesture="kb:NVDA+control+3",
 	)
 	def script_jumpCursor3(self, gesture):
 		self.mgr.jump_to_cursor(3)
@@ -246,7 +365,7 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
 	@script(
 		category=CATEGORY_NAME,
 		description=_("Jumps to Cursor 4 and restores caret/focus"),
-		gesture="kb:NVDA+alt+4",
+		gesture="kb:NVDA+control+4",
 	)
 	def script_jumpCursor4(self, gesture):
 		self.mgr.jump_to_cursor(4)
@@ -254,7 +373,7 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
 	@script(
 		category=CATEGORY_NAME,
 		description=_("Jumps to Cursor 5 and restores caret/focus"),
-		gesture="kb:NVDA+alt+5",
+		gesture="kb:NVDA+control+5",
 	)
 	def script_jumpCursor5(self, gesture):
 		self.mgr.jump_to_cursor(5)
@@ -262,7 +381,7 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
 	@script(
 		category=CATEGORY_NAME,
 		description=_("Jumps to Cursor 6 and restores caret/focus"),
-		gesture="kb:NVDA+alt+6",
+		gesture="kb:NVDA+control+6",
 	)
 	def script_jumpCursor6(self, gesture):
 		self.mgr.jump_to_cursor(6)
@@ -270,7 +389,7 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
 	@script(
 		category=CATEGORY_NAME,
 		description=_("Jumps to Cursor 7 and restores caret/focus"),
-		gesture="kb:NVDA+alt+7",
+		gesture="kb:NVDA+control+7",
 	)
 	def script_jumpCursor7(self, gesture):
 		self.mgr.jump_to_cursor(7)
@@ -278,7 +397,7 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
 	@script(
 		category=CATEGORY_NAME,
 		description=_("Jumps to Cursor 8 and restores caret/focus"),
-		gesture="kb:NVDA+alt+8",
+		gesture="kb:NVDA+control+8",
 	)
 	def script_jumpCursor8(self, gesture):
 		self.mgr.jump_to_cursor(8)
@@ -286,7 +405,21 @@ class GlobalPlugin(globalPluginHandler.GlobalPlugin):
 	@script(
 		category=CATEGORY_NAME,
 		description=_("Jumps to Cursor 9 and restores caret/focus"),
-		gesture="kb:NVDA+alt+9",
+		gesture="kb:NVDA+control+9",
 	)
 	def script_jumpCursor9(self, gesture):
 		self.mgr.jump_to_cursor(9)
+
+	# ------------------------------------------------------------------
+	# Plugin Cleanup
+	# ------------------------------------------------------------------
+
+	def terminate(self):
+		"""
+		Release all MultiFocus gesture bindings when the plugin unloads.
+		"""
+		self._disableMultiFocusGestures()
+		try:
+			super().terminate()
+		except (AttributeError, TypeError):
+			pass

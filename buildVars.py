@@ -19,10 +19,15 @@ and virtual focuses across applications, web pages, and documents.
 Create multiple focus markers, cycle between them, toggle between
 recent locations, or peek at other cursor positions without losing
 your active work."""),
-	addon_version="1.0.0",
-	addon_changelog=_("""Initial release of MultiFocus featuring multiple cursors,
-quick toggle, interactive cursor manager dialog, audio peeking,
-and automatic window switching."""),
+	addon_version="1.1.0",
+	addon_changelog=_("""1.1.0:
+- Dynamic MultiFocus mode toggle via NVDA+Windows+M (OFF by default).
+- When OFF, gestures are dynamically released to NVDA and applications.
+- Updated gestures: NVDA+Alt+F to toggle recent cursors, NVDA+Ctrl+1..9 to jump.
+- Scoped gesture unbinding on toggle and plugin termination.
+
+1.0.0:
+- Initial release of MultiFocus featuring multiple cursors, quick toggle, interactive cursor manager dialog, audio peeking, and automatic window switching."""),
 	addon_author="Pawan Kumar",
 	addon_url="https://github.com/Blindtechagent/multiFocus",
 	addon_sourceURL="https://github.com/Blindtechagent/multiFocus",
